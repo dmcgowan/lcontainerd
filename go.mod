@@ -1,4 +1,4 @@
-module github.com/containerd/containerd-hacks
+module github.com/containerd/lcontainerd
 
 go 1.17
 
