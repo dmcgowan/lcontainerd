@@ -19,10 +19,13 @@ package db
 import (
 	"encoding/binary"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/containerd/containerd/content"
+	localcontent "github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/errdefs"
+	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -46,6 +49,11 @@ type DBOpt func(*dbOptions)
 
 // dbOptions configure db options.
 type dbOptions struct {
+	boltOptions bbolt.Options
+}
+
+func WithReadOnly(dbo *dbOptions) {
+	dbo.boltOptions.ReadOnly = true
 }
 
 // DB represents a metadata database backed by a bolt
@@ -80,20 +88,36 @@ type DB struct {
 
 // NewDB creates a new metadata database using the provided
 // bolt database, content store, and snapshotters.
-func NewDB(db *bolt.DB, cs content.Store, opts ...DBOpt) *DB {
-	m := &DB{
-		db:     db,
-		dbopts: dbOptions{},
-	}
-
+func NewDB(root string, opts ...DBOpt) (*DB, error) {
+	var dbo dbOptions
 	for _, opt := range opts {
-		opt(&m.dbopts)
+		opt(&dbo)
 	}
 
-	// Initialize data stores
+	metadb := filepath.Join(root, "meta.db")
+	bdb, err := bbolt.Open(metadb, 0600, &dbo.boltOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	contentpath := filepath.Join(root, "content")
+	cs, err := localcontent.NewStore(contentpath)
+	if err != nil {
+		return nil, err
+	}
+
+	m := &DB{
+		db:     bdb,
+		dbopts: dbo,
+	}
+
 	m.cs = newContentStore(m, cs)
 
-	return m
+	return m, nil
+}
+
+func (m *DB) Close() error {
+	return m.db.Close()
 }
 
 // ContentStore returns a namespaced content store

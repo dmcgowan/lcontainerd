@@ -32,7 +32,7 @@ import (
 
 func TestImagesList(t *testing.T) {
 	ctx, db := testEnv(t)
-	store := NewImageStore(NewDB(db, nil))
+	store := NewImageStore(db)
 
 	testset := map[string]*images.Image{}
 	for i := 0; i < 4; i++ {
@@ -148,7 +148,7 @@ func TestImagesList(t *testing.T) {
 }
 func TestImagesCreateUpdateDelete(t *testing.T) {
 	ctx, db := testEnv(t)
-	store := NewImageStore(NewDB(db, nil))
+	store := NewImageStore(db)
 
 	for _, testcase := range []struct {
 		name       string

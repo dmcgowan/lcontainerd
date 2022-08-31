@@ -21,11 +21,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/content/testsuite"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
@@ -36,17 +34,12 @@ import (
 
 func createContentStore(ctx context.Context, root string, opts ...DBOpt) (context.Context, content.Store, func() error, error) {
 	// TODO: Use mocked or in-memory store
-	cs, err := local.NewStore(root)
+	db, err := NewDB(root, opts...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	db, err := bolt.Open(filepath.Join(root, "metadata.db"), 0660, nil)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return ctx, NewDB(db, cs, opts...).ContentStore(), func() error {
+	return ctx, db.ContentStore(), func() error {
 		return db.Close()
 	}, nil
 }

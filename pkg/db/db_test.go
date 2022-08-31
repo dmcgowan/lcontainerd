@@ -22,11 +22,9 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"path/filepath"
 	"testing"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log/logtest"
@@ -54,23 +52,16 @@ func testDB(t *testing.T, opt ...testOpt) (context.Context, *DB) {
 
 	dirname := t.TempDir()
 
-	cs, err := local.NewStore(filepath.Join(dirname, "content"))
+	db, err := NewDB(dirname)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	bdb, err := bolt.Open(filepath.Join(dirname, "metadata.db"), 0644, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	db := NewDB(bdb, cs)
 	//if err := db.Init(ctx); err != nil {
 	//	t.Fatal(err)
 	//}
 
 	t.Cleanup(func() {
-		bdb.Close()
+		db.Close()
 		cancel()
 	})
 	return ctx, db
@@ -79,7 +70,7 @@ func testDB(t *testing.T, opt ...testOpt) (context.Context, *DB) {
 func TestInit(t *testing.T) {
 	_, db := testEnv(t)
 
-	if err := NewDB(db, nil).Update(func(*bolt.Tx) error { return nil }); err != nil {
+	if err := db.Update(func(*bolt.Tx) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 
@@ -203,7 +194,7 @@ func runMigrationTest(i int, init, check func(*bolt.Tx) error) func(t *testing.T
 }
 */
 
-func readDBVersion(db *bolt.DB, schema []byte) (int, error) {
+func readDBVersion(db *DB, schema []byte) (int, error) {
 	var version int
 	if err := db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(schema)
@@ -441,33 +432,25 @@ type testLease struct {
 }
 
 func newStores(t testing.TB) (*DB, content.Store) {
-	td := t.TempDir()
-	db, err := bolt.Open(filepath.Join(td, "meta.db"), 0644, nil)
+	mdb, err := NewDB(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	lcs, err := local.NewStore(filepath.Join(td, "content"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mdb := NewDB(db, lcs)
 
 	t.Cleanup(func() {
-		db.Close()
+		mdb.Close()
 	})
 
 	return mdb, mdb.ContentStore()
 }
 
-func testEnv(t *testing.T) (context.Context, *bolt.DB) {
+func testEnv(t *testing.T) (context.Context, *DB) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = logtest.WithT(ctx, t)
 
 	dirname := t.TempDir()
 
-	db, err := bolt.Open(filepath.Join(dirname, "meta.db"), 0644, nil)
+	db, err := NewDB(dirname)
 	if err != nil {
 		t.Fatal(err)
 	}
