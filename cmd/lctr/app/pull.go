@@ -86,7 +86,7 @@ command. As part of this process, we do the following:
 		if err != nil {
 			return err
 		}
-		defer mdb.Close()
+		defer mdb.Close(ctx)
 
 		reg := image.NewOCIRegistry(named.String(), nil, ch)
 		is := image.NewStore(named.String())

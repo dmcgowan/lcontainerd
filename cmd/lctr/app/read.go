@@ -46,7 +46,7 @@ var listCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		defer mdb.Close()
+		defer mdb.Close(ctx)
 
 		imgdb := db.NewImageStore(mdb)
 		images, err := imgdb.List(ctx)
@@ -85,7 +85,7 @@ var readCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		defer mdb.Close()
+		defer mdb.Close(ctx)
 
 		imgdb := db.NewImageStore(mdb)
 		img, err := imgdb.Get(ctx, ref)

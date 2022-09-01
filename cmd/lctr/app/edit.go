@@ -74,7 +74,7 @@ var createCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		defer mdb.Close()
+		defer mdb.Close(ctx)
 
 		imgdb := db.NewImageStore(mdb)
 		if _, err := imgdb.Get(ctx, ref); err == nil {
@@ -156,7 +156,7 @@ var appendCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		defer mdb.Close()
+		defer mdb.Close(ctx)
 
 		imgdb := db.NewImageStore(mdb)
 		img, err := imgdb.Get(ctx, ref)

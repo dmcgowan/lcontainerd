@@ -92,7 +92,7 @@ command. As part of this process, we do the following:
 		if err != nil {
 			return err
 		}
-		defer mdb.Close()
+		defer mdb.Close(ctx)
 
 		reg := image.NewOCIRegistry(ref, nil, ch)
 		is := image.NewStore(localref)
