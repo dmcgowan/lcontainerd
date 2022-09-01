@@ -728,51 +728,42 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 			return nil
 		}
 
-		// iterate through each namespace
-		v1c := v1bkt.Cursor()
-
-		for k, v := v1c.First(); k != nil; k, v = v1c.Next() {
-			if v != nil {
-				continue
-			}
-
-			cbkt := v1bkt.Bucket(k).Bucket(bucketKeyObjectContent)
-			if cbkt == nil {
-				continue
-			}
-			bbkt := cbkt.Bucket(bucketKeyObjectBlob)
-			if bbkt != nil {
-				if err := bbkt.ForEach(func(ck, cv []byte) error {
-					if cv == nil {
-						contentSeen[string(ck)] = struct{}{}
-					}
-					return nil
-				}); err != nil {
-					return err
+		cbkt := v1bkt.Bucket(bucketKeyObjectContent)
+		if cbkt == nil {
+			return nil
+		}
+		bbkt := cbkt.Bucket(bucketKeyObjectBlob)
+		if bbkt != nil {
+			if err := bbkt.ForEach(func(ck, cv []byte) error {
+				if cv == nil {
+					contentSeen[string(ck)] = struct{}{}
 				}
+				return nil
+			}); err != nil {
+				return err
 			}
+		}
 
-			ibkt := cbkt.Bucket(bucketKeyObjectIngests)
-			if ibkt != nil {
-				if err := ibkt.ForEach(func(ref, v []byte) error {
-					if v == nil {
-						bkt := ibkt.Bucket(ref)
-						// expected here may be from a different namespace
-						// so much be explicitly retained from the ingest
-						// in case it was removed from the other namespace
-						expected := bkt.Get(bucketKeyExpected)
-						if len(expected) > 0 {
-							contentSeen[string(expected)] = struct{}{}
-						}
-						bref := bkt.Get(bucketKeyRef)
-						if len(bref) > 0 {
-							ingestSeen[string(bref)] = struct{}{}
-						}
+		ibkt := cbkt.Bucket(bucketKeyObjectIngests)
+		if ibkt != nil {
+			if err := ibkt.ForEach(func(ref, v []byte) error {
+				if v == nil {
+					bkt := ibkt.Bucket(ref)
+					// expected here may be from a different namespace
+					// so much be explicitly retained from the ingest
+					// in case it was removed from the other namespace
+					expected := bkt.Get(bucketKeyExpected)
+					if len(expected) > 0 {
+						contentSeen[string(expected)] = struct{}{}
 					}
-					return nil
-				}); err != nil {
-					return err
+					bref := bkt.Get(bucketKeyRef)
+					if len(bref) > 0 {
+						ingestSeen[string(bref)] = struct{}{}
+					}
 				}
+				return nil
+			}); err != nil {
+				return err
 			}
 		}
 
