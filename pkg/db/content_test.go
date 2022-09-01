@@ -40,7 +40,7 @@ func createContentStore(ctx context.Context, root string, opts ...DBOpt) (contex
 	}
 
 	return ctx, db.ContentStore(), func() error {
-		return db.Close()
+		return db.Close(ctx)
 	}, nil
 }
 

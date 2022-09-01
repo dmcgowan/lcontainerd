@@ -17,14 +17,18 @@
 package db
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/containerd/containerd/content"
 	localcontent "github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/gc"
+	"github.com/containerd/containerd/log"
 	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
 )
@@ -83,6 +87,9 @@ type DB struct {
 	// should only be updated inside of a write transaction or wlock.Lock.
 	dirtyCS bool
 
+	// collectible resources
+	collectors map[gc.ResourceType]Collector
+
 	dbopts dbOptions
 }
 
@@ -116,8 +123,13 @@ func NewDB(root string, opts ...DBOpt) (*DB, error) {
 	return m, nil
 }
 
-func (m *DB) Close() error {
-	return m.db.Close()
+func (m *DB) Close(ctx context.Context) error {
+	_, gcerr := m.GarbageCollect(ctx)
+	cerr := m.db.Close()
+	if gcerr != nil {
+		return gcerr
+	}
+	return cerr
 }
 
 // ContentStore returns a namespaced content store
@@ -181,7 +193,6 @@ func updateDBVersion(tx *bolt.Tx) error {
 	}
 }
 
-/*
 // GCStats holds the duration for the different phases of the garbage collector
 type GCStats struct {
 	MetaD     time.Duration
@@ -216,9 +227,9 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 			}
 
 			if n.Type == ResourceSnapshot {
-				if idx := strings.IndexRune(n.Key, '/'); idx > 0 {
-					m.dirtySS[n.Key[:idx]] = struct{}{}
-				}
+				//if idx := strings.IndexRune(n.Key, '/'); idx > 0 {
+				//	m.dirtySS[n.Key[:idx]] = struct{}{}
+				//}
 			} else if n.Type == ResourceContent || n.Type == ResourceIngest {
 				m.dirtyCS = true
 			}
@@ -242,25 +253,27 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 	// reset dirty, no need for atomic inside of wlock.Lock
 	m.dirty = 0
 
-	if len(m.dirtySS) > 0 {
-		var sl sync.Mutex
-		stats.SnapshotD = map[string]time.Duration{}
-		wg.Add(len(m.dirtySS))
-		for snapshotterName := range m.dirtySS {
-			log.G(ctx).WithField("snapshotter", snapshotterName).Debug("schedule snapshotter cleanup")
-			go func(snapshotterName string) {
-				st1 := time.Now()
-				m.cleanupSnapshotter(snapshotterName)
+	/*
+		if len(m.dirtySS) > 0 {
+			var sl sync.Mutex
+			stats.SnapshotD = map[string]time.Duration{}
+			wg.Add(len(m.dirtySS))
+			for snapshotterName := range m.dirtySS {
+				log.G(ctx).WithField("snapshotter", snapshotterName).Debug("schedule snapshotter cleanup")
+				go func(snapshotterName string) {
+					st1 := time.Now()
+					m.cleanupSnapshotter(snapshotterName)
 
-				sl.Lock()
-				stats.SnapshotD[snapshotterName] = time.Since(st1)
-				sl.Unlock()
+					sl.Lock()
+					stats.SnapshotD[snapshotterName] = time.Since(st1)
+					sl.Unlock()
 
-				wg.Done()
-			}(snapshotterName)
+					wg.Done()
+				}(snapshotterName)
+			}
+			m.dirtySS = map[string]struct{}{}
 		}
-		m.dirtySS = map[string]struct{}{}
-	}
+	*/
 
 	if m.dirtyCS {
 		wg.Add(1)
@@ -333,6 +346,7 @@ func (m *DB) getMarked(ctx context.Context, c *gcContext) (map[gc.Node]struct{},
 	return marked, nil
 }
 
+/*
 func (m *DB) cleanupSnapshotter(name string) (time.Duration, error) {
 	ctx := context.Background()
 	sn, ok := m.ss[name]
@@ -349,6 +363,7 @@ func (m *DB) cleanupSnapshotter(name string) (time.Duration, error) {
 	}
 	return d, err
 }
+*/
 
 func (m *DB) cleanupContent() (time.Duration, error) {
 	ctx := context.Background()
@@ -365,4 +380,3 @@ func (m *DB) cleanupContent() (time.Duration, error) {
 
 	return d, err
 }
-*/

@@ -61,7 +61,7 @@ func testDB(t *testing.T, opt ...testOpt) (context.Context, *DB) {
 	//}
 
 	t.Cleanup(func() {
-		db.Close()
+		db.Close(ctx)
 		cancel()
 	})
 	return ctx, db
@@ -438,7 +438,7 @@ func newStores(t testing.TB) (*DB, content.Store) {
 	}
 
 	t.Cleanup(func() {
-		mdb.Close()
+		mdb.Close(context.Background())
 	})
 
 	return mdb, mdb.ContentStore()
@@ -456,7 +456,7 @@ func testEnv(t *testing.T) (context.Context, *DB) {
 	}
 
 	t.Cleanup(func() {
-		db.Close()
+		db.Close(context.Background())
 		cancel()
 	})
 
