@@ -80,6 +80,7 @@ containerd CLI for library and hacks
 		readCommand,
 		createCommand,
 		appendCommand,
+		removeCommand,
 	}, extraCmds...)
 	app.Before = func(context *cli.Context) error {
 		if context.GlobalBool("debug") {
