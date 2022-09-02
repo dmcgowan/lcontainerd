@@ -96,6 +96,7 @@ var createCommand = cli.Command{
 			return err
 		}
 
+		var copts []content.Opt
 		var manifest interface{}
 		var target ocispec.Descriptor
 		if desc == nil {
@@ -117,6 +118,7 @@ var createCommand = cli.Command{
 				Config:      *desc,
 				Annotations: annotations,
 			}
+			copts = append(copts, content.WithLabels(getChildGCLabels(*desc, 0)))
 		}
 
 		b, err := json.Marshal(manifest)
@@ -127,7 +129,8 @@ var createCommand = cli.Command{
 		target.Size = int64(len(b))
 		target.Digest = digest.FromBytes(b)
 
-		if err := content.WriteBlob(ctx, mdb.ContentStore(), target.Digest.String()+"-ingest", bytes.NewReader(b), target); err != nil {
+		// Add content label
+		if err := content.WriteBlob(ctx, mdb.ContentStore(), target.Digest.String()+"-ingest", bytes.NewReader(b), target, copts...); err != nil {
 			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 
@@ -173,7 +176,9 @@ var appendCommand = cli.Command{
 			return fmt.Errorf("no object specified to append to image")
 		}
 
+		var copts []content.Opt
 		var manifest interface{}
+		var position int
 		switch img.Target.MediaType {
 		case "application/vnd.oci.image.index.v2+json":
 			b, err := content.ReadBlob(ctx, mdb.ContentStore(), img.Target)
@@ -184,6 +189,7 @@ var appendCommand = cli.Command{
 			if err := json.Unmarshal(b, &idx); err != nil {
 				return err
 			}
+			position = len(idx.Manifests)
 			idx.Manifests = append(idx.Manifests, *desc)
 			manifest = idx
 		case "application/vnd.oci.image.manifest.v1+json":
@@ -195,11 +201,13 @@ var appendCommand = cli.Command{
 			if err := json.Unmarshal(b, &m); err != nil {
 				return err
 			}
+			position = len(m.Layers)
 			m.Layers = append(m.Layers, *desc)
 			manifest = m
 		default:
 			return fmt.Errorf("media type not supported for making updates: %s", img.Target.MediaType)
 		}
+		copts = append(copts, content.WithLabels(getChildGCLabels(*desc, position)))
 
 		b, err := json.Marshal(manifest)
 		if err != nil {
@@ -209,7 +217,7 @@ var appendCommand = cli.Command{
 		img.Target.Size = int64(len(b))
 		img.Target.Digest = digest.FromBytes(b)
 
-		if err := content.WriteBlob(ctx, mdb.ContentStore(), img.Target.Digest.String()+"-ingest", bytes.NewReader(b), img.Target); err != nil {
+		if err := content.WriteBlob(ctx, mdb.ContentStore(), img.Target.Digest.String()+"-ingest", bytes.NewReader(b), img.Target, copts...); err != nil {
 			return err
 		}
 		_, err = imgdb.Update(ctx, img)
@@ -282,4 +290,19 @@ func keyValueArgs(args []string, defaultValue string) (map[string]string, error)
 	}
 
 	return kvs, nil
+}
+
+func getChildGCLabels(desc ocispec.Descriptor, position int) (labels map[string]string) {
+	prefixes := images.ChildGCLabels(desc)
+	if len(prefixes) > 0 {
+		labels = map[string]string{}
+		for _, key := range prefixes {
+			if strings.HasSuffix(key, ".") {
+				key = fmt.Sprintf("%s%d", key, position)
+			}
+			labels[key] = desc.Digest.String()
+		}
+
+	}
+	return
 }
