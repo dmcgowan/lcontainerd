@@ -105,7 +105,7 @@ var readCommand = cli.Command{
 	},
 }
 
-func printManifestTree(ctx context.Context, w io.Writer, desc ocispec.Descriptor, p content.Provider, prefix, childprefix string, verbose bool) error {
+func printManifestTree(ctx context.Context, w io.Writer, desc ocispec.Descriptor, p content.Store, prefix, childprefix string, verbose bool) error {
 	subprefix := childprefix + "├── "
 	subchild := childprefix + "│   "
 	fmt.Fprintf(w, "%s%s @%s (%d bytes)\n", prefix, desc.MediaType, desc.Digest, desc.Size)
@@ -167,7 +167,20 @@ func printManifestTree(ctx context.Context, w io.Writer, desc ocispec.Descriptor
 	return nil
 }
 
-func showContent(ctx context.Context, w io.Writer, p content.Provider, desc ocispec.Descriptor, prefix string, verbose bool) error {
+func showContent(ctx context.Context, w io.Writer, p content.Store, desc ocispec.Descriptor, prefix string, verbose bool) error {
+	if verbose {
+		info, err := p.Info(ctx, desc.Digest)
+		if err != nil {
+			return err
+		}
+		if len(info.Labels) > 0 {
+			fmt.Fprintf(w, "%s┌────────Labels─────────\n", prefix)
+			for k, v := range info.Labels {
+				fmt.Fprintf(w, "%s│%q: %q\n", prefix, k, v)
+			}
+			fmt.Fprintf(w, "%s└───────────────────────\n", prefix)
+		}
+	}
 	if verbose && strings.HasSuffix(desc.MediaType, "json") {
 		// Print content for config
 		cb, err := content.ReadBlob(ctx, p, desc)
@@ -177,7 +190,7 @@ func showContent(ctx context.Context, w io.Writer, p content.Provider, desc ocis
 		dst := bytes.NewBuffer(nil)
 		json.Indent(dst, cb, prefix+"│", "   ")
 		fmt.Fprintf(w, "%s┌────────Content────────\n", prefix)
-		fmt.Fprintf(w, "%s│%s\n", prefix, dst)
+		fmt.Fprintf(w, "%s│%s\n", prefix, strings.TrimSpace(dst.String()))
 		fmt.Fprintf(w, "%s└───────────────────────\n", prefix)
 	}
 	return nil

@@ -118,7 +118,7 @@ var createCommand = cli.Command{
 				Config:      *desc,
 				Annotations: annotations,
 			}
-			copts = append(copts, content.WithLabels(getChildGCLabels(*desc, 0)))
+			copts = append(copts, content.WithLabels(getChildGCLabels(*desc, 0, nil)))
 		}
 
 		b, err := json.Marshal(manifest)
@@ -176,6 +176,11 @@ var appendCommand = cli.Command{
 			return fmt.Errorf("no object specified to append to image")
 		}
 
+		info, err := mdb.ContentStore().Info(ctx, img.Target.Digest)
+		if err != nil {
+			return err
+		}
+
 		var copts []content.Opt
 		var manifest interface{}
 		var position int
@@ -201,13 +206,14 @@ var appendCommand = cli.Command{
 			if err := json.Unmarshal(b, &m); err != nil {
 				return err
 			}
-			position = len(m.Layers)
+			// Add 1 to position to account for config as the first element for child labeling
+			position = len(m.Layers) + 1
 			m.Layers = append(m.Layers, *desc)
 			manifest = m
 		default:
 			return fmt.Errorf("media type not supported for making updates: %s", img.Target.MediaType)
 		}
-		copts = append(copts, content.WithLabels(getChildGCLabels(*desc, position)))
+		copts = append(copts, content.WithLabels(getChildGCLabels(*desc, position, info.Labels)))
 
 		b, err := json.Marshal(manifest)
 		if err != nil {
@@ -292,10 +298,12 @@ func keyValueArgs(args []string, defaultValue string) (map[string]string, error)
 	return kvs, nil
 }
 
-func getChildGCLabels(desc ocispec.Descriptor, position int) (labels map[string]string) {
+func getChildGCLabels(desc ocispec.Descriptor, position int, labels map[string]string) map[string]string {
 	prefixes := images.ChildGCLabels(desc)
 	if len(prefixes) > 0 {
-		labels = map[string]string{}
+		if labels == nil {
+			labels = map[string]string{}
+		}
 		for _, key := range prefixes {
 			if strings.HasSuffix(key, ".") {
 				key = fmt.Sprintf("%s%d", key, position)
@@ -304,5 +312,6 @@ func getChildGCLabels(desc ocispec.Descriptor, position int) (labels map[string]
 		}
 
 	}
-	return
+	fmt.Println(labels)
+	return labels
 }
