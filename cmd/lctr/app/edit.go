@@ -312,6 +312,5 @@ func getChildGCLabels(desc ocispec.Descriptor, position int, labels map[string]s
 		}
 
 	}
-	fmt.Println(labels)
 	return labels
 }
