@@ -81,6 +81,10 @@ containerd CLI for library and hacks
 		createCommand,
 		appendCommand,
 		removeCommand,
+		listLeaseCommand,
+		leaseImageCommand,
+		inspectLeaseCommand,
+		removeLeaseCommand,
 	}, extraCmds...)
 	app.Before = func(context *cli.Context) error {
 		if context.GlobalBool("debug") {
