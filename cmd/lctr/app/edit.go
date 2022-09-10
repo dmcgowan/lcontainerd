@@ -277,6 +277,105 @@ func getDescriptor(ctx context.Context, clicontext *cli.Context, ing content.Ing
 	return &desc, nil
 }
 
+var editImageCommand = cli.Command{
+	Name:        "edit-image",
+	Usage:       "edit image annotations",
+	ArgsUsage:   "<image-name> [flags]",
+	Description: `edit image annotations and updates media type`,
+	Flags: []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "manifest-annotation",
+			Usage: "Annotations to apply to the manifest",
+		},
+	},
+	Action: func(clicontext *cli.Context) error {
+		var (
+			ctx = context.Background()
+			ref = clicontext.Args().First()
+		)
+		mdb, err := db.NewDB(clicontext.GlobalString("data-dir"))
+		if err != nil {
+			return err
+		}
+		defer mdb.Close(ctx)
+
+		imgdb := db.NewImageStore(mdb)
+		img, err := imgdb.Get(ctx, ref)
+		if err != nil {
+			return fmt.Errorf("image could not be retrieved: %w", err)
+		}
+
+		annotations, err := keyValueArgs(clicontext.StringSlice("manifest-annotation"), "")
+		if err != nil {
+			return err
+		}
+
+		info, err := mdb.ContentStore().Info(ctx, img.Target.Digest)
+		if err != nil {
+			return err
+		}
+
+		var copts []content.Opt
+		var manifest interface{}
+		switch img.Target.MediaType {
+		case ocispec.MediaTypeImageIndex, images.MediaTypeDockerSchema2ManifestList:
+			b, err := content.ReadBlob(ctx, mdb.ContentStore(), img.Target)
+			if err != nil {
+				return err
+			}
+			var idx ocispec.Index
+			if err := json.Unmarshal(b, &idx); err != nil {
+				return err
+			}
+			for k, v := range annotations {
+				if idx.Annotations == nil {
+					idx.Annotations = map[string]string{}
+				}
+				idx.Annotations[k] = v
+			}
+			idx.MediaType = ocispec.MediaTypeImageIndex
+			img.Target.MediaType = idx.MediaType
+			manifest = idx
+		case ocispec.MediaTypeImageManifest, images.MediaTypeDockerSchema2Manifest:
+			b, err := content.ReadBlob(ctx, mdb.ContentStore(), img.Target)
+			if err != nil {
+				return err
+			}
+			var m ocispec.Manifest
+			if err := json.Unmarshal(b, &m); err != nil {
+				return err
+			}
+			for k, v := range annotations {
+				if m.Annotations == nil {
+					m.Annotations = map[string]string{}
+				}
+				m.Annotations[k] = v
+			}
+			m.MediaType = ocispec.MediaTypeImageManifest
+			img.Target.MediaType = m.MediaType
+			manifest = m
+		default:
+			return fmt.Errorf("media type not supported for making updates: %s", img.Target.MediaType)
+		}
+		copts = append(copts, content.WithLabels(info.Labels))
+
+		b, err := json.Marshal(manifest)
+		if err != nil {
+			return err
+		}
+
+		img.Target.Size = int64(len(b))
+		img.Target.Digest = digest.FromBytes(b)
+
+		if err := content.WriteBlob(ctx, mdb.ContentStore(), img.Target.Digest.String()+"-ingest", bytes.NewReader(b), img.Target, copts...); err != nil {
+			return err
+		}
+		_, err = imgdb.Update(ctx, img)
+
+		return err
+	},
+}
+
 func keyValueArgs(args []string, defaultValue string) (map[string]string, error) {
 	if len(args) == 0 {
 		return nil, nil

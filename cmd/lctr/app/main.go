@@ -80,6 +80,7 @@ containerd CLI for library and hacks
 		readCommand,
 		createCommand,
 		appendCommand,
+		editImageCommand,
 		removeCommand,
 		listLeaseCommand,
 		leaseImageCommand,
