@@ -24,11 +24,14 @@ import (
 	"strings"
 	"time"
 
+	transferTypes "github.com/containerd/containerd/api/types/transfer"
 	"github.com/containerd/containerd/cmd/ctr/commands"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/progress"
 	"github.com/containerd/containerd/pkg/transfer"
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
+	"github.com/containerd/containerd/protobuf/proto"
 	dockerref "github.com/containerd/containerd/reference/docker"
 	"github.com/containerd/lcontainerd/pkg/db"
 	"github.com/urfave/cli"
@@ -57,6 +60,10 @@ command. As part of this process, we do the following:
 		cli.BoolFlag{
 			Name:  "all-platforms",
 			Usage: "pull content and metadata from all platforms",
+		},
+		cli.BoolFlag{
+			Name:  "proto-out",
+			Usage: "output progress directly to stdout as proto messages",
 		},
 		cli.IntFlag{
 			Name:  "max-concurrent-downloads",
@@ -93,85 +100,17 @@ command. As part of this process, we do the following:
 
 		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb))
 
-		pf := ProgressHandler(ctx, os.Stdout)
+		var pf transfer.ProgressFunc
+		if clicontext.Bool("proto-out") {
+			pf = ProtoProgressForward(ctx, os.Stdout)
+		} else {
+			pf = ProgressHandler(ctx, os.Stdout)
+		}
 
 		if err := ts.Transfer(ctx, reg, is, transfer.WithProgress(pf)); err != nil {
 			return err
 		}
 
-		// Connect to database
-		/*
-
-			client, ctx, cancel, err := commands.NewClient(context)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			ctx, done, err := client.WithLease(ctx)
-			if err != nil {
-				return err
-			}
-			defer done(ctx)
-
-			// TODO: Handle this locally via transfer config
-			//config, err := content.NewFetchConfig(ctx, context)
-			// if err != nil {
-			//	return err
-			//}
-
-			if err := client.Transfer(ctx, nil, nil); err != nil {
-				return err
-			}
-
-			/*
-				img, err := content.Fetch(ctx, client, ref, config)
-				if err != nil {
-					return err
-				}
-
-				log.G(ctx).WithField("image", ref).Debug("unpacking")
-
-				// TODO: Show unpack status
-
-				var p []ocispec.Platform
-				if context.Bool("all-platforms") {
-					p, err = images.Platforms(ctx, client.ContentStore(), img.Target)
-					if err != nil {
-						return fmt.Errorf("unable to resolve image platforms: %w", err)
-					}
-				} else {
-					for _, s := range context.StringSlice("platform") {
-						ps, err := platforms.Parse(s)
-						if err != nil {
-							return fmt.Errorf("unable to parse platform %s: %w", s, err)
-						}
-						p = append(p, ps)
-					}
-				}
-				if len(p) == 0 {
-					p = append(p, platforms.DefaultSpec())
-				}
-
-				start := time.Now()
-				for _, platform := range p {
-					fmt.Printf("unpacking %s %s...\n", platforms.Format(platform), img.Target.Digest)
-					i := containerd.NewImageWithPlatform(client, img, platforms.Only(platform))
-					err = i.Unpack(ctx, context.String("snapshotter"))
-					if err != nil {
-						return err
-					}
-					if context.Bool("print-chainid") {
-						diffIDs, err := i.RootFS(ctx)
-						if err != nil {
-							return err
-						}
-						chainID := identity.ChainID(diffIDs).String()
-						fmt.Printf("image chain ID: %s\n", chainID)
-					}
-				}
-				fmt.Printf("done: %s\t\n", time.Since(start))
-		*/
 		return nil
 	},
 }
@@ -180,6 +119,25 @@ type progressNode struct {
 	transfer.Progress
 	children []*progressNode
 	root     bool
+}
+
+func ProtoProgressForward(ctx context.Context, out io.Writer) transfer.ProgressFunc {
+	return func(p transfer.Progress) {
+		b, err := proto.Marshal(&transferTypes.Progress{
+			Event:    p.Event,
+			Name:     p.Name,
+			Parents:  p.Parents,
+			Progress: p.Progress,
+			Total:    p.Total,
+		})
+		if err != nil {
+			log.G(ctx).WithError(err).Warnf("event could not be marshaled: %v/%v", p.Event, p.Name)
+			return
+		}
+		if _, err := out.Write(b); err != nil {
+			log.G(ctx).WithError(err).Warnf("event could not be written: %v/%v", p.Event, p.Name)
+		}
+	}
 }
 
 // ProgressHandler continuously updates the output with job progress
