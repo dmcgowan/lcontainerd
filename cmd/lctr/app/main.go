@@ -76,6 +76,7 @@ containerd CLI for library and hacks
 	app.Commands = append([]cli.Command{
 		pullCommand,
 		pushCommand,
+		importCommand,
 		listCommand,
 		readCommand,
 		createCommand,
