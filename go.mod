@@ -65,4 +65,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/containerd/containerd => github.com/dmcgowan/containerd v0.0.0-20220914051150-b167c719d0d0
+replace github.com/containerd/containerd => github.com/dmcgowan/containerd v0.0.0-20220916180809-ce1262a6cbb5
