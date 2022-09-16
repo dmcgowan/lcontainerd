@@ -31,19 +31,11 @@ import (
 )
 
 var pushCommand = cli.Command{
-	Name:      "push-image",
-	Aliases:   []string{"push"},
-	Usage:     "push an image to a remote",
-	ArgsUsage: "[flags] <ref> [<local>]",
-	Description: `Fetch and prepare an image for use in containerd.
-
-After pulling an image, it should be ready to use the same reference in a run
-command. As part of this process, we do the following:
-
-1. Fetch all resources into containerd.
-2. Prepare the snapshot filesystem with the pulled resources.
-3. Register metadata for the image.
-`,
+	Name:        "push-image",
+	Aliases:     []string{"push"},
+	Usage:       "push an image to a remote",
+	ArgsUsage:   "[flags] <ref> [<local>]",
+	Description: `Pushes an image to an OCI registry`,
 	Flags: append(append(commands.RegistryFlags, commands.LabelFlag),
 		cli.StringSliceFlag{
 			Name:  "platform",
@@ -57,10 +49,6 @@ command. As part of this process, we do the following:
 		cli.BoolFlag{
 			Name:  "proto-out",
 			Usage: "output progress directly to stdout as proto messages",
-		},
-		cli.IntFlag{
-			Name:  "max-concurrent-downloads",
-			Usage: "Set the max concurrent downloads for each pull",
 		},
 	),
 	Action: func(clicontext *cli.Context) error {
