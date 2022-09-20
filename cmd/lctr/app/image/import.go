@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package app
+package image
 
 import (
 	"context"
@@ -32,8 +32,7 @@ import (
 )
 
 var importCommand = cli.Command{
-	Name:        "import-image",
-	Aliases:     []string{"import"},
+	Name:        "import",
 	Usage:       "imports an image locally",
 	ArgsUsage:   "[flags] <file>|-",
 	Description: `Imports an OCI archive into the content and image store.`,

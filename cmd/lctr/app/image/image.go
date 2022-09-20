@@ -14,23 +14,25 @@
    limitations under the License.
 */
 
-package main
+package image
 
-import (
-	"fmt"
-	"os"
+import "github.com/urfave/cli"
 
-	"github.com/containerd/containerd/pkg/seed"
-	"github.com/containerd/lcontainerd/cmd/lctr/app"
-)
-
-func init() {
-	seed.WithTimeAndRand()
-}
-
-func main() {
-	if err := app.New().Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "lctr: %s\n", err)
-		os.Exit(1)
-	}
+// Command is the cli command for managing images
+var Command = cli.Command{
+	Name:    "image",
+	Aliases: []string{"i"},
+	Usage:   "manage images",
+	Subcommands: cli.Commands{
+		pullCommand,
+		pushCommand,
+		importCommand,
+		listCommand,
+		readCommand,
+		createCommand,
+		appendCommand,
+		editImageCommand,
+		removeCommand,
+		leaseImageCommand,
+	},
 }

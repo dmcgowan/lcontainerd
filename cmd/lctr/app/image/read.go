@@ -14,203 +14,61 @@
    limitations under the License.
 */
 
-package app
+package image
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/lcontainerd/pkg/db"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
 
-var listLeaseCommand = cli.Command{
-	Name:        "list-leases",
-	Usage:       "list all leases",
+var listCommand = cli.Command{
+	Name:        "list",
+	Aliases:     []string{"ls"},
+	Usage:       "list all images",
 	ArgsUsage:   "[flags]",
-	Description: `Lists all leases`,
+	Description: `Lists all images stored locally`,
 	Action: func(clicontext *cli.Context) error {
 		var (
 			ctx = context.Background()
 		)
 		mdb, err := db.NewDB(clicontext.GlobalString("data-dir"), db.WithReadOnly)
-		if err != nil {
-			return err
-		}
-		defer mdb.Close(ctx)
-
-		lm := db.NewLeaseManager(mdb)
-
-		leases, err := lm.List(ctx)
-		if err != nil {
-			return err
-		}
-
-		tw := tabwriter.NewWriter(os.Stdout, 8, 3, 1, ' ', 0)
-		fmt.Fprintf(tw, "Lease ID\tCreated At\tLabels\n")
-		fmt.Fprintf(tw, "----------\t------\t----------\n")
-
-		for _, l := range leases {
-			fmt.Fprintf(tw, "%s\t%s\t%s\n", l.ID, l.CreatedAt, formatLabels(l.Labels))
-		}
-
-		return tw.Flush()
-	},
-}
-
-var leaseImageCommand = cli.Command{
-	Name:        "lease-image",
-	Usage:       "leases an image",
-	ArgsUsage:   "<image> [lease id] [flags]",
-	Description: `Creates a lease on an image`,
-	Flags: []cli.Flag{
-		cli.DurationFlag{
-			Name:  "expiration",
-			Usage: "When to expire the lease",
-		},
-		cli.StringSliceFlag{
-			Name:  "label",
-			Usage: "Labels to add to the image",
-		},
-	},
-	Action: func(clicontext *cli.Context) error {
-		var (
-			ctx   = context.Background()
-			image = clicontext.Args().First()
-		)
-		mdb, err := db.NewDB(clicontext.GlobalString("data-dir"))
 		if err != nil {
 			return err
 		}
 		defer mdb.Close(ctx)
 
 		imgdb := db.NewImageStore(mdb)
-		img, err := imgdb.Get(ctx, image)
+		images, err := imgdb.List(ctx)
 		if err != nil {
 			return err
 		}
-
-		var opts []leases.Opt
-		if id := clicontext.Args().Get(1); id != "" {
-			opts = append(opts, leases.WithID(id))
-		} else {
-			opts = append(opts, leases.WithRandomID())
-		}
-		labels, err := keyValueArgs(clicontext.StringSlice("label"), "")
-		if err != nil {
-			return err
-		}
-		if len(labels) > 0 {
-			opts = append(opts, leases.WithLabels(labels))
-		}
-		if d := clicontext.Duration("expiration"); d > 0 {
-			opts = append(opts, leases.WithExpiration(d))
-		}
-
-		lm := db.NewLeaseManager(mdb)
-
-		lease, err := lm.Create(ctx, opts...)
-		if err != nil {
-			return err
-		}
-
-		if err := lm.AddResource(ctx, lease, leases.Resource{
-			ID:   img.Target.Digest.String(),
-			Type: "content",
-		}); err != nil {
-			return err
-		}
-
-		fmt.Fprintf(os.Stdout, "Created lease %s\n", lease.ID)
-		return nil
-	},
-}
-
-var inspectLeaseCommand = cli.Command{
-	Name:        "inspect-lease",
-	Usage:       "inspect a lease",
-	ArgsUsage:   "<lease id> [flags]",
-	Description: `Inspect the resources owned by a lease`,
-	Action: func(clicontext *cli.Context) error {
-		var (
-			ctx = context.Background()
-			lid = clicontext.Args().First()
-		)
-		if lid == "" {
-			return fmt.Errorf("must provide a lease ID")
-		}
-		mdb, err := db.NewDB(clicontext.GlobalString("data-dir"), db.WithReadOnly)
-		if err != nil {
-			return err
-		}
-		defer mdb.Close(ctx)
-
-		lm := db.NewLeaseManager(mdb)
-
-		resources, err := lm.ListResources(ctx, leases.Lease{ID: lid})
-		if err != nil {
-			return err
-		}
-
 		tw := tabwriter.NewWriter(os.Stdout, 8, 3, 1, ' ', 0)
-		fmt.Fprintf(tw, "Type\tID\n")
-		fmt.Fprintf(tw, "----\t--\n")
+		fmt.Fprintf(tw, "Image Name\tDigest\tMedia Type\n")
+		fmt.Fprintf(tw, "----------\t------\t----------\n")
 
-		for _, r := range resources {
-			fmt.Fprintf(tw, "%s\t%s\n", r.Type, r.ID)
+		for _, img := range images {
+			fmt.Fprintf(tw, "%s\t%s\t%s\n", img.Name, img.Target.Digest, img.Target.MediaType)
 		}
 
 		return tw.Flush()
 	},
 }
 
-var removeLeaseCommand = cli.Command{
-	Name:        "remove-lease",
-	Aliases:     []string{"rml"},
-	Usage:       "remove a lease",
-	ArgsUsage:   "<lease id> [flags]",
-	Description: `Inspect the resources owned by a lease`,
-	Action: func(clicontext *cli.Context) error {
-		var (
-			ctx = context.Background()
-			lid = clicontext.Args().First()
-		)
-		if lid == "" {
-			return fmt.Errorf("must provide a lease ID")
-		}
-		mdb, err := db.NewDB(clicontext.GlobalString("data-dir"))
-		if err != nil {
-			return err
-		}
-		defer mdb.Close(ctx)
-
-		lm := db.NewLeaseManager(mdb)
-
-		err = lm.Delete(ctx, leases.Lease{ID: lid})
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintf(os.Stdout, "Deleted lease %s\n", lid)
-		return nil
-	},
-}
-
-func formatLabels(l map[string]string) string {
-	var ls []string
-	for k, v := range l {
-		ls = append(ls, fmt.Sprintf("%s=%s", k, v))
-	}
-	return strings.Join(ls, ", ")
-}
-
-/*
 var readCommand = cli.Command{
-	Name:        "inspect-image",
+	Name:        "inspect",
+	Aliases:     []string{"i"},
 	Usage:       "inspect an image",
 	ArgsUsage:   "<image> [flags]",
 	Description: `Inspect an image`,
@@ -339,4 +197,3 @@ func showContent(ctx context.Context, w io.Writer, p content.Store, desc ocispec
 	}
 	return nil
 }
-*/

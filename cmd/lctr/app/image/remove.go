@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package app
+package image
 
 import (
 	"context"
@@ -25,7 +25,8 @@ import (
 )
 
 var removeCommand = cli.Command{
-	Name:        "remove-image",
+	Name:        "remove",
+	Aliases:     []string{"rm"},
 	Usage:       "remove an image",
 	ArgsUsage:   "<image name> [flags]",
 	Description: `Removes an image stored locally`,

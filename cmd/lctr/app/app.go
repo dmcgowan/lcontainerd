@@ -22,11 +22,11 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/version"
+	"github.com/containerd/lcontainerd/cmd/lctr/app/image"
+	"github.com/containerd/lcontainerd/cmd/lctr/app/lease"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
-
-var extraCmds = []cli.Command{}
 
 func init() {
 	cli.VersionPrinter = func(c *cli.Context) {
@@ -73,21 +73,10 @@ containerd CLI for library and hacks
 			Value: filepath.Join(datadir, "lctr"),
 		},
 	}
-	app.Commands = append([]cli.Command{
-		pullCommand,
-		pushCommand,
-		importCommand,
-		listCommand,
-		readCommand,
-		createCommand,
-		appendCommand,
-		editImageCommand,
-		removeCommand,
-		listLeaseCommand,
-		leaseImageCommand,
-		inspectLeaseCommand,
-		removeLeaseCommand,
-	}, extraCmds...)
+	app.Commands = []cli.Command{
+		image.Command,
+		lease.Command,
+	}
 	app.Before = func(context *cli.Context) error {
 		if context.GlobalBool("debug") {
 			logrus.SetLevel(logrus.DebugLevel)

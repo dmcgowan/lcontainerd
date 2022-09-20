@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package app
+package image
 
 import (
 	"bytes"
@@ -50,7 +50,7 @@ var descriptorFlags = []cli.Flag{
 }
 
 var createCommand = cli.Command{
-	Name:        "create-image",
+	Name:        "create",
 	Usage:       "create a new image",
 	ArgsUsage:   "<image-name> <config-file> <config-type> [flags]",
 	Description: `Create a new image locally`,
@@ -145,7 +145,7 @@ var createCommand = cli.Command{
 }
 
 var appendCommand = cli.Command{
-	Name:        "append-image",
+	Name:        "append",
 	Usage:       "create a new image",
 	ArgsUsage:   "<image-name> [flags]",
 	Description: `appends descriptor image locally`,
@@ -278,7 +278,7 @@ func getDescriptor(ctx context.Context, clicontext *cli.Context, ing content.Ing
 }
 
 var editImageCommand = cli.Command{
-	Name:        "edit-image",
+	Name:        "edit",
 	Usage:       "edit image annotations",
 	ArgsUsage:   "<image-name> [flags]",
 	Description: `edit image annotations and updates media type`,

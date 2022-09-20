@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package app
+package image
 
 import (
 	"context"
@@ -31,8 +31,7 @@ import (
 )
 
 var pushCommand = cli.Command{
-	Name:        "push-image",
-	Aliases:     []string{"push"},
+	Name:        "push",
 	Usage:       "push an image to a remote",
 	ArgsUsage:   "[flags] <ref> [<local>]",
 	Description: `Pushes an image to an OCI registry`,
