@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/version"
+	"github.com/containerd/lcontainerd/cmd/lctr/app/content"
 	"github.com/containerd/lcontainerd/cmd/lctr/app/image"
 	"github.com/containerd/lcontainerd/cmd/lctr/app/lease"
 	"github.com/sirupsen/logrus"
@@ -74,6 +75,7 @@ containerd CLI for library and hacks
 		},
 	}
 	app.Commands = []cli.Command{
+		content.Command,
 		image.Command,
 		lease.Command,
 	}
