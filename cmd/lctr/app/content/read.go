@@ -47,7 +47,7 @@ var readCommand = cli.Command{
 
 		var f io.Writer
 		if path := clicontext.Args().Get(1); path != "" {
-			fp, err := os.OpenFile(path, 0600, os.FileMode(os.O_CREATE|os.O_WRONLY|os.O_TRUNC))
+			fp, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return err
 			}
