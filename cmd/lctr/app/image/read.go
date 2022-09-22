@@ -197,3 +197,136 @@ func showContent(ctx context.Context, w io.Writer, p content.Store, desc ocispec
 	}
 	return nil
 }
+
+var getContentCommand = cli.Command{
+	Name:        "get-content",
+	Usage:       "gets image content",
+	ArgsUsage:   "<image> [file] [flags]",
+	Description: `Gets content for an image, defaults to first layer (or first layer of first manifest when index)`,
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "index",
+			Usage: "Get the index (when image points to index)",
+		},
+		cli.IntFlag{
+			Name:  "index-manifest",
+			Usage: "Which manifest to use in index",
+			Value: 0,
+		},
+		cli.BoolFlag{
+			Name:  "manifest",
+			Usage: "Get the manifest",
+		},
+		cli.BoolFlag{
+			Name:  "config",
+			Usage: "Get the config",
+		},
+		cli.IntFlag{
+			Name:  "layer",
+			Usage: "Which layer to get",
+			Value: 0,
+		},
+		cli.BoolFlag{
+			Name:  "media-type",
+			Usage: "Get media type only",
+		},
+	},
+	Action: func(clicontext *cli.Context) error {
+		var (
+			ctx = context.Background()
+			ref = clicontext.Args().First()
+		)
+		mdb, err := db.NewDB(clicontext.GlobalString("data-dir"), db.WithReadOnly)
+		if err != nil {
+			return err
+		}
+		defer mdb.Close(ctx)
+
+		imgdb := db.NewImageStore(mdb)
+		img, err := imgdb.Get(ctx, ref)
+		if err != nil {
+			return err
+		}
+
+		desc, err := resolveGetDigest(ctx, img.Target, clicontext, mdb.ContentStore())
+		if err != nil {
+			return err
+		}
+
+		var f io.Writer
+		if path := clicontext.Args().Get(1); path != "" {
+			fp, err := os.OpenFile(path, 0600, os.FileMode(os.O_CREATE|os.O_WRONLY|os.O_TRUNC))
+			if err != nil {
+				return err
+			}
+			defer fp.Close()
+			f = fp
+		} else {
+			f = os.Stdout
+		}
+
+		if clicontext.Bool("media-type") {
+			_, err = fmt.Fprint(f, desc.MediaType)
+			return err
+		}
+
+		ra, err := mdb.ContentStore().ReaderAt(ctx, desc)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, content.NewReader(ra))
+		return err
+	},
+}
+
+func resolveGetDigest(ctx context.Context, desc ocispec.Descriptor, clicontext *cli.Context, store content.Store) (ocispec.Descriptor, error) {
+	var (
+		getIndex    = clicontext.Bool("index")
+		getManifest = clicontext.Bool("manifest")
+		getConfig   = clicontext.Bool("config")
+		layerI      = clicontext.Int("layer")
+		manifestI   = clicontext.Int("index-manifest")
+	)
+	switch desc.MediaType {
+	case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+		if getManifest {
+			return desc, nil
+		}
+		b, err := content.ReadBlob(ctx, store, desc)
+		if err != nil {
+			return ocispec.Descriptor{}, err
+		}
+		var manifest ocispec.Manifest
+		if err := json.Unmarshal(b, &manifest); err != nil {
+			return ocispec.Descriptor{}, err
+		}
+
+		if getConfig {
+			return manifest.Config, nil
+		}
+
+		if len(manifest.Layers) <= layerI {
+			return ocispec.Descriptor{}, fmt.Errorf("index %d does not exist in %s", layerI, desc.Digest)
+		}
+		return manifest.Layers[layerI], nil
+	case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+		if getIndex {
+			return desc, nil
+		}
+		b, err := content.ReadBlob(ctx, store, desc)
+		if err != nil {
+			return ocispec.Descriptor{}, err
+		}
+		var idx ocispec.Index
+		if err := json.Unmarshal(b, &idx); err != nil {
+			return ocispec.Descriptor{}, err
+		}
+		if len(idx.Manifests) <= manifestI {
+			return ocispec.Descriptor{}, fmt.Errorf("manifest %d does not exist in %s", manifestI, desc.Digest)
+		}
+		return resolveGetDigest(ctx, idx.Manifests[manifestI], clicontext, store)
+	default:
+		return desc, nil
+	}
+}

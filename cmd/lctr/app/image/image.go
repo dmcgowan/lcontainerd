@@ -34,5 +34,6 @@ var Command = cli.Command{
 		editImageCommand,
 		removeCommand,
 		leaseImageCommand,
+		getContentCommand,
 	},
 }
