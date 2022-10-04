@@ -25,9 +25,11 @@ import (
 	"github.com/containerd/containerd/pkg/transfer"
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
+	"github.com/containerd/containerd/platforms"
 	dockerref "github.com/containerd/containerd/reference/docker"
 	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
 
@@ -49,10 +51,6 @@ command. As part of this process, we do the following:
 			Name:  "platform",
 			Usage: "Pull content from a specific platform",
 			Value: &cli.StringSlice{},
-		},
-		cli.BoolFlag{
-			Name:  "all-platforms",
-			Usage: "pull content and metadata from all platforms",
 		},
 		cli.BoolFlag{
 			Name:  "proto-out",
@@ -88,8 +86,23 @@ command. As part of this process, we do the following:
 		}
 		defer mdb.Close(ctx)
 
+		var sopts []image.StoreOpt
+		storeplatforms := clicontext.StringSlice("platform")
+		// Add platforms if provided, default to all platforms
+		if len(storeplatforms) > 0 {
+			var p []ocispec.Platform
+			for _, s := range storeplatforms {
+				ps, err := platforms.Parse(s)
+				if err != nil {
+					return fmt.Errorf("unable to parse platform %s: %w", s, err)
+				}
+				p = append(p, ps)
+			}
+			sopts = append(sopts, image.WithPlatforms(p...))
+		}
+
 		reg := image.NewOCIRegistry(named.String(), nil, ch)
-		is := image.NewStore(named.String())
+		is := image.NewStore(named.String(), sopts...)
 
 		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb))
 
