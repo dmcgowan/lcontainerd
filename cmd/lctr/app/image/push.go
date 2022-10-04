@@ -26,6 +26,7 @@ import (
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
 	dockerref "github.com/containerd/containerd/reference/docker"
+	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
 	"github.com/urfave/cli"
 )
@@ -92,9 +93,9 @@ var pushCommand = cli.Command{
 
 		var pf transfer.ProgressFunc
 		if clicontext.Bool("proto-out") {
-			pf = ProtoProgressForward(ctx, os.Stdout)
+			pf = progress.ForwardProto(ctx, os.Stdout)
 		} else {
-			pf = ProgressHandler(ctx, os.Stdout)
+			pf = progress.Hierarchical(ctx, os.Stdout)
 		}
 
 		if err := ts.Transfer(ctx, is, reg, transfer.WithProgress(pf)); err != nil {

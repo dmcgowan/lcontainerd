@@ -27,6 +27,7 @@ import (
 	"github.com/containerd/containerd/pkg/transfer/archive"
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
+	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
 	"github.com/urfave/cli"
 )
@@ -107,9 +108,9 @@ var importCommand = cli.Command{
 
 		var pf transfer.ProgressFunc
 		if clicontext.Bool("proto-out") {
-			pf = ProtoProgressForward(ctx, os.Stdout)
+			pf = progress.ForwardProto(ctx, os.Stdout)
 		} else {
-			pf = ProgressHandler(ctx, os.Stdout)
+			pf = progress.Hierarchical(ctx, os.Stdout)
 		}
 
 		err = ts.Transfer(ctx, iis, is, transfer.WithProgress(pf))
