@@ -3,66 +3,47 @@ module github.com/containerd/lcontainerd
 go 1.17
 
 require (
-	github.com/containerd/containerd v1.6.1
+	github.com/containerd/containerd v1.7.0-beta.0.0.20221206164918-5d4276cc34dd
 	github.com/containerd/typeurl v1.0.3-0.20220422153119-7f6e6d160d67
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.0.3-0.20220303224323-02efb9a75ee1
-	github.com/sirupsen/logrus v1.8.1
+	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
 	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli v1.22.9
 	go.etcd.io/bbolt v1.3.6
 )
 
 require (
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20220706123152-fef3fe1bab07 // indirect
-	github.com/Microsoft/go-winio v0.5.2 // indirect
+	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/Microsoft/hcsshim v0.10.0-rc.1 // indirect
-	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/container-orchestrated-devices/container-device-interface v0.3.1 // indirect
-	github.com/containerd/cgroups v1.0.5-0.20220816231112-7083cd60b721 // indirect
 	github.com/containerd/console v1.0.3 // indirect
-	github.com/containerd/continuity v0.3.0 // indirect
-	github.com/containerd/fifo v1.0.0 // indirect
 	github.com/containerd/ttrpc v1.1.1-0.20220420014843-944ef4a40df3 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/uuid v1.3.0 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/klauspost/compress v1.11.13 // indirect
-	github.com/moby/locker v1.0.1 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
-	github.com/moby/sys/signal v0.7.0 // indirect
-	github.com/opencontainers/runc v1.1.2 // indirect
-	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
-	github.com/opencontainers/runtime-tools v0.0.0-20190417131837-cd1349b7c47e // indirect
-	github.com/opencontainers/selinux v1.10.1 // indirect
-	github.com/pelletier/go-toml v1.9.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
-	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
-	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
-	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
-	google.golang.org/grpc v1.47.0 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	go.opentelemetry.io/otel v1.11.1 // indirect
+	go.opentelemetry.io/otel/trace v1.11.1 // indirect
+	golang.org/x/mod v0.6.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/tools v0.2.0 // indirect
+	google.golang.org/genproto v0.0.0-20221107162902-2d387536bcdd // indirect
+	google.golang.org/grpc v1.50.1 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/containerd/containerd => github.com/dmcgowan/containerd v0.0.0-20220916180809-ce1262a6cbb5
+require (
+	github.com/containerd/cgroups v1.0.5-0.20220816231112-7083cd60b721 // indirect
+	google.golang.org/protobuf v1.28.1
+)
