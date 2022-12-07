@@ -27,6 +27,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -56,6 +57,12 @@ var LineTreeFormat = TreeFormat{
 	LastDrop:   "└── ",
 	SkipLine:   "│   ",
 	Spacer:     "    ",
+}
+
+type ContentReader interface {
+	content.Provider
+
+	Info(ctx context.Context, dgst digest.Digest) (content.Info, error)
 }
 
 type Printer struct {
@@ -96,7 +103,7 @@ func NewPrinter(opts ...PrintOpt) *Printer {
 }
 
 // PrintImageTree prints an image and all its sub elements
-func (p *Printer) PrintImageTree(ctx context.Context, img images.Image, store content.Store) error {
+func (p *Printer) PrintImageTree(ctx context.Context, img images.Image, store ContentReader) error {
 	fmt.Fprintln(p.w, img.Name)
 	subchild := p.format.SkipLine
 	fmt.Fprintf(p.w, "%s Created: %s\n", subchild, img.CreatedAt)
@@ -108,12 +115,12 @@ func (p *Printer) PrintImageTree(ctx context.Context, img images.Image, store co
 }
 
 // PrintManifestTree prints a manifest and all its sub elements
-func (p *Printer) PrintManifestTree(ctx context.Context, desc ocispec.Descriptor, store content.Store) error {
+func (p *Printer) PrintManifestTree(ctx context.Context, desc ocispec.Descriptor, store ContentReader) error {
 	// start displaying tree from the root descriptor perspective, which is a single child view
 	return p.printManifestTree(ctx, desc, store, p.format.LastDrop, p.format.Spacer)
 }
 
-func (p *Printer) printManifestTree(ctx context.Context, desc ocispec.Descriptor, store content.Store, prefix, childprefix string) error {
+func (p *Printer) printManifestTree(ctx context.Context, desc ocispec.Descriptor, store ContentReader, prefix, childprefix string) error {
 	subprefix := childprefix + p.format.MiddleDrop
 	subchild := childprefix + p.format.SkipLine
 	fmt.Fprintf(p.w, "%s%s @%s (%d bytes)\n", prefix, desc.MediaType, desc.Digest, desc.Size)
@@ -175,7 +182,7 @@ func (p *Printer) printManifestTree(ctx context.Context, desc ocispec.Descriptor
 	return nil
 }
 
-func (p *Printer) showContent(ctx context.Context, store content.Store, desc ocispec.Descriptor, prefix string) error {
+func (p *Printer) showContent(ctx context.Context, store ContentReader, desc ocispec.Descriptor, prefix string) error {
 	if p.verbose {
 		info, err := store.Info(ctx, desc.Digest)
 		if err != nil {
