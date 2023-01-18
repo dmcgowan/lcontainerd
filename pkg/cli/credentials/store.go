@@ -14,27 +14,16 @@
    limitations under the License.
 */
 
-package image
+package credentials
 
-import "github.com/urfave/cli"
+import (
+	"context"
 
-// Command is the cli command for managing images
-var Command = cli.Command{
-	Name:    "image",
-	Aliases: []string{"i"},
-	Usage:   "manage images",
-	Subcommands: cli.Commands{
-		pullCommand,
-		pushCommand,
-		importCommand,
-		listCommand,
-		readCommand,
-		createCommand,
-		appendCommand,
-		editImageCommand,
-		removeCommand,
-		leaseImageCommand,
-		getContentCommand,
-		loginCommand,
-	},
+	"github.com/containerd/containerd/pkg/transfer/image"
+)
+
+// StoreCredentials stores the credentials in the default credential store
+// for the system or environment
+func StoreCredentials(ctx context.Context, host string, creds image.Credentials) error {
+	return storeCredentials(ctx, host, creds)
 }

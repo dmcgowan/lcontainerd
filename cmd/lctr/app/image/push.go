@@ -26,6 +26,7 @@ import (
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
 	dockerref "github.com/containerd/containerd/reference/docker"
+	"github.com/containerd/lcontainerd/pkg/cli/credentials"
 	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
 	"github.com/urfave/cli"
@@ -75,7 +76,7 @@ var pushCommand = cli.Command{
 			}
 		}
 
-		ch, err := commands.NewStaticCredentials(ctx, clicontext, ref)
+		ch, err := credentials.NewCredentialHelper(ref, clicontext.String("user"))
 		if err != nil {
 			return err
 		}
