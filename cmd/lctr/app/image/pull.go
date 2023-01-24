@@ -27,7 +27,6 @@ import (
 	"github.com/containerd/containerd/pkg/transfer/local"
 	"github.com/containerd/containerd/platforms"
 	dockerref "github.com/containerd/containerd/reference/docker"
-	"github.com/containerd/lcontainerd/pkg/cli/credentials"
 	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -47,7 +46,7 @@ command. As part of this process, we do the following:
 2. Prepare the snapshot filesystem with the pulled resources.
 3. Register metadata for the image.
 `,
-	Flags: append(append(commands.RegistryFlags, commands.LabelFlag),
+	Flags: append(append(registryFlags, commands.LabelFlag),
 		cli.StringSliceFlag{
 			Name:  "platform",
 			Usage: "Pull content from a specific platform",
@@ -76,7 +75,7 @@ command. As part of this process, we do the following:
 			return err
 		}
 
-		ch, err := credentials.NewCredentialHelper(named.String(), clicontext.String("user"))
+		ch, err := getCredentialHelper(clicontext, named.String())
 		if err != nil {
 			return err
 		}

@@ -18,26 +18,84 @@ package credentials
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/containerd/containerd/pkg/transfer/image"
 )
 
-type staticCredentials struct {
+type keychainCredentials struct {
 	user string
 	ref  string
 }
 
-// NewCredentialHelper gets credentials from the default credential store
-func NewCredentialHelper(ref, user string) (image.CredentialHelper, error) {
-	return &staticCredentials{
+// NewKeychainCredentialHelper gets credentials from the default credential store
+func NewKeychainCredentialHelper(ref, user string) (image.CredentialHelper, error) {
+	return &keychainCredentials{
 		user: user,
 		ref:  ref,
 	}, nil
 }
 
-func (sc *staticCredentials) GetCredentials(ctx context.Context, ref, host string) (image.Credentials, error) {
+func (sc *keychainCredentials) GetCredentials(ctx context.Context, ref, host string) (image.Credentials, error) {
 	if ref == sc.ref {
 		return getCredentials(ctx, host, sc.user)
 	}
 	return image.Credentials{}, nil
+}
+
+type localCredentials struct {
+	user    string
+	ref     string
+	dir     string
+	decoder Decoder
+}
+
+// NewLocalCredentialHelper gets credentials from the default credential store
+func NewLocalCredentialHelper(ref, user, dir string, decoder Decoder) (image.CredentialHelper, error) {
+	return &localCredentials{
+		user:    user,
+		ref:     ref,
+		dir:     dir,
+		decoder: decoder,
+	}, nil
+}
+
+func (lc *localCredentials) GetCredentials(ctx context.Context, ref, host string) (image.Credentials, error) {
+	if ref != lc.ref {
+		return image.Credentials{}, nil
+	}
+	files, err := os.ReadDir(lc.dir)
+	if err != nil {
+		return image.Credentials{}, err
+	}
+	fullMatch := host
+	if lc.user != "" {
+		fullMatch = fmt.Sprintf("%s@%s", lc.user, host)
+	}
+	var bestMatch string
+	for _, e := range files {
+		name := e.Name()
+		if name == fullMatch {
+			bestMatch = fullMatch
+			break
+		}
+		if name == host {
+			bestMatch = host
+		} else if bestMatch == "" && strings.HasSuffix(name, "@"+host) {
+			bestMatch = name
+		}
+	}
+	if bestMatch == "" {
+		return image.Credentials{}, nil
+	}
+
+	b, err := os.ReadFile(filepath.Join(lc.dir, bestMatch))
+	if err != nil {
+		return image.Credentials{}, err
+	}
+
+	return lc.decoder.Decode(b)
 }

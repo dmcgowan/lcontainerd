@@ -26,7 +26,6 @@ import (
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
 	dockerref "github.com/containerd/containerd/reference/docker"
-	"github.com/containerd/lcontainerd/pkg/cli/credentials"
 	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
 	"github.com/urfave/cli"
@@ -37,7 +36,7 @@ var pushCommand = cli.Command{
 	Usage:       "push an image to a remote",
 	ArgsUsage:   "[flags] <ref> [<local>]",
 	Description: `Pushes an image to an OCI registry`,
-	Flags: append(append(commands.RegistryFlags, commands.LabelFlag),
+	Flags: append(append(registryFlags, commands.LabelFlag),
 		cli.StringSliceFlag{
 			Name:  "platform",
 			Usage: "Pull content from a specific platform",
@@ -76,7 +75,7 @@ var pushCommand = cli.Command{
 			}
 		}
 
-		ch, err := credentials.NewCredentialHelper(ref, clicontext.String("user"))
+		ch, err := getCredentialHelper(clicontext, ref)
 		if err != nil {
 			return err
 		}

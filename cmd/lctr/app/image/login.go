@@ -21,6 +21,7 @@ import (
 	"net/url"
 
 	"github.com/containerd/containerd/cmd/ctr/commands"
+	"github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/lcontainerd/pkg/cli/credentials"
 	"github.com/urfave/cli"
 )
@@ -30,7 +31,7 @@ var loginCommand = cli.Command{
 	Usage:       "saves login for a registry",
 	ArgsUsage:   "[flags] <host>",
 	Description: `Imports an OCI archive into the content and image store.`,
-	Flags:       commands.RegistryFlags,
+	Flags:       registryFlags,
 	Action: func(clicontext *cli.Context) error {
 		ctx := context.Background()
 
@@ -57,6 +58,36 @@ var loginCommand = cli.Command{
 		}
 		creds.Host = host
 
-		return credentials.StoreCredentials(ctx, host, creds)
+		return storeCredentials(ctx, clicontext, host, creds)
 	},
 }
+
+func storeCredentials(ctx context.Context, clicontext *cli.Context, host string, creds image.Credentials) error {
+	if dir := clicontext.String("credential-directory"); dir != "" {
+		// TODO: Support keyfile decoder/encoder
+		encdec := credentials.NewUnencryptedJSON()
+		credentials.StoreCredentialsLocal(ctx, dir, host, creds, encdec)
+	}
+	return credentials.StoreCredentialsInKeychain(ctx, host, creds)
+}
+
+func getCredentialHelper(clicontext *cli.Context, ref string) (image.CredentialHelper, error) {
+	if dir := clicontext.String("credential-directory"); dir != "" {
+		// TODO: Support keyfile decoder/encoder
+		encdec := credentials.NewUnencryptedJSON()
+		return credentials.NewLocalCredentialHelper(ref, clicontext.String("user"), dir, encdec)
+	}
+	return credentials.NewKeychainCredentialHelper(ref, clicontext.String("user"))
+}
+
+// loginFlags are cli flags specifying registry options
+var loginFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:   "credential-directory",
+		Usage:  "a directory for storing credentials",
+		EnvVar: "CONTAINERD_CREDENTIAL_DIRECTORY",
+	},
+	// TODO: Keyfile for encryption
+}
+
+var registryFlags = append(commands.RegistryFlags, loginFlags...)
