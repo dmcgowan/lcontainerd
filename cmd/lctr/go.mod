@@ -33,6 +33,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/keybase/dbus v0.0.0-20220506165403-5aa21ea2c23a // indirect
 	github.com/keybase/go-keychain v0.0.0-20221221221913-9be78f6c498b // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/moby/locker v1.0.1 // indirect
@@ -49,6 +50,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
