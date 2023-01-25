@@ -66,7 +66,7 @@ func storeCredentials(ctx context.Context, clicontext *cli.Context, host string,
 	if dir := clicontext.String("credential-directory"); dir != "" {
 		// TODO: Support keyfile decoder/encoder
 		encdec := credentials.NewUnencryptedJSON()
-		credentials.StoreCredentialsLocal(ctx, dir, host, creds, encdec)
+		return credentials.StoreCredentialsLocal(ctx, dir, host, creds, encdec)
 	}
 	return credentials.StoreCredentialsInKeychain(ctx, host, creds)
 }
