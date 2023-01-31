@@ -16,24 +16,107 @@
 
 package credentials
 
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/containerd/containerd/errdefs"
+	image "github.com/containerd/containerd/pkg/transfer/image"
+
+	"github.com/keybase/go-keychain"
+)
+
 func storeCredentials(ctx context.Context, host string, creds image.Credentials) error {
+	b, err := json.Marshal(creds)
+	if err != nil {
+		return err
+	}
+
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
-	item.SetService("containerd")
-	item.SetAccount(creds.Username)
-	item.SetLabel(fmt.Sprintf("Login for %s", host))
+	item.SetService(host)
+	if creds.Username != "" {
+		item.SetAccount(creds.Username)
+	}
+	item.SetLabel(id(host))
+	item.SetDescription("containerd registry credentials")
 	item.SetAccessGroup("io.containerd")
-	item.SetData([]byte("toomanysecrets"))
 	item.SetSynchronizable(keychain.SynchronizableNo)
 	item.SetAccessible(keychain.AccessibleWhenUnlocked)
-	err := keychain.AddItem(item)
+	item.SetData(b)
 
+	err = keychain.AddItem(item)
 	if err == keychain.ErrorDuplicateItem {
-		// Duplicate
+		return keychain.UpdateItem(item, item)
 	}
-	return nil
+
+	return err
 }
 
 func getCredentials(ctx context.Context, host, user string) (image.Credentials, error) {
-	returb image.Credentials{}, nil
+	kid := id(host)
+	item := keychain.NewItem()
+	item.SetSecClass(keychain.SecClassGenericPassword)
+	item.SetService(host)
+	item.SetLabel(kid)
+	item.SetDescription("containerd registry credentials")
+	item.SetAccessGroup("io.containerd")
+	item.SetReturnAttributes(true)
+	item.SetMatchLimit(keychain.MatchLimitAll)
+
+	// Query all and choose best match
+	items, err := keychain.QueryItem(item)
+	if err != nil {
+		return image.Credentials{}, fmt.Errorf("keychain query failed: %w", err)
+	}
+	var bestMatch *keychain.QueryResult
+	for _, item := range items {
+		if item.Account != "" {
+			if item.Account == user {
+				bestMatch = &item
+				break
+			} else if user != "" {
+				continue
+			}
+		}
+		if bestMatch != nil {
+			bestMatch = &item
+		}
+	}
+
+	if bestMatch == nil {
+		return image.Credentials{}, errdefs.ErrNotFound
+	}
+
+	item = keychain.NewItem()
+	item.SetSecClass(keychain.SecClassGenericPassword)
+	item.SetService(host)
+	item.SetLabel(kid)
+	item.SetAccount(bestMatch.Account)
+	item.SetAccessGroup("io.containerd")
+	item.SetReturnAttributes(true)
+	item.SetMatchLimit(keychain.MatchLimitOne)
+	item.SetReturnData(true)
+
+	// Get single result
+	items, err = keychain.QueryItem(item)
+	if err != nil {
+		return image.Credentials{}, fmt.Errorf("keychain query failed: %w", err)
+	}
+
+	if len(items) != 1 {
+		return image.Credentials{}, errdefs.ErrNotFound
+	}
+
+	var creds image.Credentials
+	if err := json.Unmarshal(items[0].Data, &creds); err != nil {
+		return image.Credentials{}, err
+	}
+
+	return creds, nil
+}
+
+func id(host string) string {
+	return fmt.Sprintf("containerd login: %s", host)
 }
