@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/log"
 	image "github.com/containerd/containerd/pkg/transfer/image"
 
 	"github.com/keybase/go-keychain"
@@ -32,22 +33,23 @@ func storeCredentials(ctx context.Context, host string, creds image.Credentials)
 	if err != nil {
 		return err
 	}
+	sid := id(host)
 
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
-	item.SetService(host)
+	item.SetService(sid)
 	if creds.Username != "" {
 		item.SetAccount(creds.Username)
 	}
-	item.SetLabel(id(host))
+	item.SetLabel(sid)
 	item.SetDescription("containerd registry credentials")
-	item.SetAccessGroup("io.containerd")
 	item.SetSynchronizable(keychain.SynchronizableNo)
-	item.SetAccessible(keychain.AccessibleWhenUnlocked)
+	item.SetAccessible(keychain.AccessibleAlways)
 	item.SetData(b)
 
 	err = keychain.AddItem(item)
 	if err == keychain.ErrorDuplicateItem {
+		log.G(ctx).WithError(err).WithField("service", sid).Debug("key found, updating")
 		return keychain.UpdateItem(item, item)
 	}
 
@@ -55,13 +57,10 @@ func storeCredentials(ctx context.Context, host string, creds image.Credentials)
 }
 
 func getCredentials(ctx context.Context, host, user string) (image.Credentials, error) {
-	kid := id(host)
+	sid := id(host)
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
-	item.SetService(host)
-	item.SetLabel(kid)
-	item.SetDescription("containerd registry credentials")
-	item.SetAccessGroup("io.containerd")
+	item.SetService(sid)
 	item.SetReturnAttributes(true)
 	item.SetMatchLimit(keychain.MatchLimitAll)
 
@@ -80,7 +79,7 @@ func getCredentials(ctx context.Context, host, user string) (image.Credentials, 
 				continue
 			}
 		}
-		if bestMatch != nil {
+		if bestMatch == nil {
 			bestMatch = &item
 		}
 	}
@@ -91,10 +90,8 @@ func getCredentials(ctx context.Context, host, user string) (image.Credentials, 
 
 	item = keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
-	item.SetService(host)
-	item.SetLabel(kid)
+	item.SetService(sid)
 	item.SetAccount(bestMatch.Account)
-	item.SetAccessGroup("io.containerd")
 	item.SetReturnAttributes(true)
 	item.SetMatchLimit(keychain.MatchLimitOne)
 	item.SetReturnData(true)
