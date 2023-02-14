@@ -18,11 +18,13 @@ package credentials
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/pkg/transfer/image"
 )
 
@@ -41,7 +43,10 @@ func NewKeychainCredentialHelper(ref, user string) (image.CredentialHelper, erro
 
 func (sc *keychainCredentials) GetCredentials(ctx context.Context, ref, host string) (image.Credentials, error) {
 	if ref == sc.ref {
-		return getCredentials(ctx, host, sc.user)
+		creds, err := getCredentials(ctx, host, sc.user)
+		if !errors.Is(err, errdefs.ErrNotFound) {
+			return creds, err
+		}
 	}
 	return image.Credentials{}, nil
 }
@@ -69,6 +74,9 @@ func (lc *localCredentials) GetCredentials(ctx context.Context, ref, host string
 	}
 	files, err := os.ReadDir(lc.dir)
 	if err != nil {
+		if errors.Is(err, errdefs.ErrNotFound) {
+			err = nil
+		}
 		return image.Credentials{}, err
 	}
 	fullMatch := host
