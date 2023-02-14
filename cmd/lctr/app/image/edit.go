@@ -27,6 +27,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/lcontainerd/pkg/db"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -43,9 +44,17 @@ var descriptorFlags = []cli.Flag{
 		Name:  "media-type",
 		Usage: "Media type",
 	},
+	cli.StringFlag{
+		Name:  "from-image",
+		Usage: "Use the descriptor from an existing image",
+	},
 	cli.StringSliceFlag{
 		Name:  "annotation",
 		Usage: "Annotations to apply to descriptor",
+	},
+	cli.StringSliceFlag{
+		Name:  "platform",
+		Usage: "Platform to apply to descriptor",
 	},
 }
 
@@ -81,7 +90,7 @@ var createCommand = cli.Command{
 			return fmt.Errorf("image already exists, use image-append to make changes")
 		}
 
-		desc, err := getDescriptor(ctx, clicontext, mdb.ContentStore())
+		desc, err := getDescriptor(ctx, clicontext, mdb.ContentStore(), imgdb)
 		if err != nil {
 			return err
 		}
@@ -167,7 +176,7 @@ var appendCommand = cli.Command{
 			return fmt.Errorf("image could not be retrieved: %w", err)
 		}
 
-		desc, err := getDescriptor(ctx, clicontext, mdb.ContentStore())
+		desc, err := getDescriptor(ctx, clicontext, mdb.ContentStore(), imgdb)
 		if err != nil {
 			return err
 		}
@@ -185,7 +194,7 @@ var appendCommand = cli.Command{
 		var manifest interface{}
 		var position int
 		switch img.Target.MediaType {
-		case "application/vnd.oci.image.index.v2+json":
+		case "application/vnd.oci.image.index.v1+json":
 			b, err := content.ReadBlob(ctx, mdb.ContentStore(), img.Target)
 			if err != nil {
 				return err
@@ -232,49 +241,69 @@ var appendCommand = cli.Command{
 	},
 }
 
-func getDescriptor(ctx context.Context, clicontext *cli.Context, ing content.Ingester) (*ocispec.Descriptor, error) {
-	file := clicontext.String("file")
-	var r io.Reader
-	if file == "-" {
-		r = os.Stdin
-	} else if file == "" {
-		return nil, nil
-	} else {
-		f, err := os.Open(file)
+func getDescriptor(ctx context.Context, clicontext *cli.Context, ing content.Ingester, is images.Store) (desc *ocispec.Descriptor, err error) {
+	if file := clicontext.String("file"); file != "" {
+		var r io.Reader
+		if file == "-" {
+			r = os.Stdin
+		} else {
+			f, err := os.Open(file)
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+			r = f
+		}
+
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, r); err != nil {
+			return nil, err
+		}
+
+		b := buf.Bytes()
+		desc = &ocispec.Descriptor{
+			MediaType: clicontext.String("media-type"),
+			Size:      int64(buf.Len()),
+			Digest:    digest.FromBytes(b),
+		}
+		if desc.MediaType == "" {
+			// Default?
+			return nil, nil
+		}
+		if err := content.WriteBlob(ctx, ing, desc.Digest.String()+"-ingest", bytes.NewReader(b), *desc); err != nil {
+			return nil, fmt.Errorf("failed to write file content: %w", err)
+		}
+	} else if img := clicontext.String("from-image"); img != "" {
+		i, err := is.Get(ctx, img)
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
-		r = f
-	}
-
-	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, r); err != nil {
-		return nil, err
+		desc = &i.Target
+	} else {
+		return nil, nil
 	}
 
 	annotations, err := keyValueArgs(clicontext.StringSlice("annotations"), "")
 	if err != nil {
 		return nil, err
 	}
-
-	b := buf.Bytes()
-	desc := ocispec.Descriptor{
-		MediaType:   clicontext.String("media-type"),
-		Size:        int64(buf.Len()),
-		Digest:      digest.FromBytes(b),
-		Annotations: annotations,
-		// TODO: Support platform args
-	}
-	if desc.MediaType == "" {
-		// Default?
-		return nil, nil
+	if len(desc.Annotations) > 0 {
+		for k, v := range annotations {
+			desc.Annotations[k] = v
+		}
+	} else {
+		desc.Annotations = annotations
 	}
 
-	if err := content.WriteBlob(ctx, ing, desc.Digest.String()+"-ingest", bytes.NewReader(b), desc); err != nil {
-		return nil, fmt.Errorf("failed to write file content: %w", err)
+	if ps := clicontext.String("platform"); ps != "" {
+		p, err := platforms.Parse(ps)
+		if err != nil {
+			return nil, err
+		}
+		desc.Platform = &p
 	}
-	return &desc, nil
+
+	return
 }
 
 var editImageCommand = cli.Command{
