@@ -63,7 +63,7 @@ var importCommand = cli.Command{
 		}
 		defer mdb.Close(ctx)
 
-		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb))
+		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb), &local.TransferConfig{})
 
 		var opts []image.StoreOpt
 		/*

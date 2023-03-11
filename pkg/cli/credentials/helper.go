@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/pkg/transfer/image"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 )
 
 type keychainCredentials struct {
@@ -34,21 +34,21 @@ type keychainCredentials struct {
 }
 
 // NewKeychainCredentialHelper gets credentials from the default credential store
-func NewKeychainCredentialHelper(ref, user string) (image.CredentialHelper, error) {
+func NewKeychainCredentialHelper(ref, user string) (registry.CredentialHelper, error) {
 	return &keychainCredentials{
 		user: user,
 		ref:  ref,
 	}, nil
 }
 
-func (sc *keychainCredentials) GetCredentials(ctx context.Context, ref, host string) (image.Credentials, error) {
+func (sc *keychainCredentials) GetCredentials(ctx context.Context, ref, host string) (registry.Credentials, error) {
 	if ref == sc.ref {
 		creds, err := getCredentials(ctx, host, sc.user)
 		if !errors.Is(err, errdefs.ErrNotFound) {
 			return creds, err
 		}
 	}
-	return image.Credentials{}, nil
+	return registry.Credentials{}, nil
 }
 
 type localCredentials struct {
@@ -59,7 +59,7 @@ type localCredentials struct {
 }
 
 // NewLocalCredentialHelper gets credentials from the default credential store
-func NewLocalCredentialHelper(ref, user, dir string, decoder Decoder) (image.CredentialHelper, error) {
+func NewLocalCredentialHelper(ref, user, dir string, decoder Decoder) (registry.CredentialHelper, error) {
 	return &localCredentials{
 		user:    user,
 		ref:     ref,
@@ -68,16 +68,16 @@ func NewLocalCredentialHelper(ref, user, dir string, decoder Decoder) (image.Cre
 	}, nil
 }
 
-func (lc *localCredentials) GetCredentials(ctx context.Context, ref, host string) (image.Credentials, error) {
+func (lc *localCredentials) GetCredentials(ctx context.Context, ref, host string) (registry.Credentials, error) {
 	if ref != lc.ref {
-		return image.Credentials{}, nil
+		return registry.Credentials{}, nil
 	}
 	files, err := os.ReadDir(lc.dir)
 	if err != nil {
 		if errors.Is(err, errdefs.ErrNotFound) {
 			err = nil
 		}
-		return image.Credentials{}, err
+		return registry.Credentials{}, err
 	}
 	fullMatch := host
 	if lc.user != "" {
@@ -97,12 +97,12 @@ func (lc *localCredentials) GetCredentials(ctx context.Context, ref, host string
 		}
 	}
 	if bestMatch == "" {
-		return image.Credentials{}, nil
+		return registry.Credentials{}, nil
 	}
 
 	b, err := os.ReadFile(filepath.Join(lc.dir, bestMatch))
 	if err != nil {
-		return image.Credentials{}, err
+		return registry.Credentials{}, err
 	}
 
 	return lc.decoder.Decode(b)

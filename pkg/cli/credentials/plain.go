@@ -19,7 +19,7 @@ package credentials
 import (
 	"encoding/json"
 
-	"github.com/containerd/containerd/pkg/transfer/image"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 )
 
 type unencryptedJson struct{}
@@ -28,11 +28,11 @@ func NewUnencryptedJSON() EncoderDecoder {
 	return unencryptedJson{}
 }
 
-func (unencryptedJson) Encode(creds image.Credentials) ([]byte, error) {
+func (unencryptedJson) Encode(creds registry.Credentials) ([]byte, error) {
 	return json.Marshal(creds)
 }
 
-func (unencryptedJson) Decode(b []byte) (creds image.Credentials, err error) {
+func (unencryptedJson) Decode(b []byte) (creds registry.Credentials, err error) {
 	err = json.Unmarshal(b, &creds)
 	return
 }

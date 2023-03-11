@@ -21,7 +21,7 @@ import (
 	"net/url"
 
 	"github.com/containerd/containerd/cmd/ctr/commands"
-	"github.com/containerd/containerd/pkg/transfer/image"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 	"github.com/containerd/lcontainerd/pkg/cli/credentials"
 	"github.com/urfave/cli"
 )
@@ -62,7 +62,7 @@ var loginCommand = cli.Command{
 	},
 }
 
-func storeCredentials(ctx context.Context, clicontext *cli.Context, host string, creds image.Credentials) error {
+func storeCredentials(ctx context.Context, clicontext *cli.Context, host string, creds registry.Credentials) error {
 	if dir := clicontext.String("credential-directory"); dir != "" {
 		// TODO: Support keyfile decoder/encoder
 		encdec := credentials.NewUnencryptedJSON()
@@ -71,7 +71,7 @@ func storeCredentials(ctx context.Context, clicontext *cli.Context, host string,
 	return credentials.StoreCredentialsInKeychain(ctx, host, creds)
 }
 
-func getCredentialHelper(clicontext *cli.Context, ref string) (image.CredentialHelper, error) {
+func getCredentialHelper(clicontext *cli.Context, ref string) (registry.CredentialHelper, error) {
 	if dir := clicontext.String("credential-directory"); dir != "" {
 		// TODO: Support keyfile decoder/encoder
 		encdec := credentials.NewUnencryptedJSON()

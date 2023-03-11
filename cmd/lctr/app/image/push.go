@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/pkg/transfer"
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 	dockerref "github.com/containerd/containerd/reference/docker"
 	"github.com/containerd/lcontainerd/pkg/cli/progress"
 	"github.com/containerd/lcontainerd/pkg/db"
@@ -86,10 +87,10 @@ var pushCommand = cli.Command{
 		}
 		defer mdb.Close(ctx)
 
-		reg := image.NewOCIRegistry(ref, nil, ch)
+		reg := registry.NewOCIRegistry(ref, nil, ch)
 		is := image.NewStore(localref)
 
-		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb))
+		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb), &local.TransferConfig{})
 
 		var pf transfer.ProgressFunc
 		if clicontext.Bool("proto-out") {

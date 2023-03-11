@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/pkg/transfer"
 	image "github.com/containerd/containerd/pkg/transfer/image"
 	"github.com/containerd/containerd/pkg/transfer/local"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 	"github.com/containerd/containerd/platforms"
 	dockerref "github.com/containerd/containerd/reference/docker"
 	"github.com/containerd/lcontainerd/pkg/cli/progress"
@@ -101,10 +102,10 @@ command. As part of this process, we do the following:
 			sopts = append(sopts, image.WithPlatforms(p...))
 		}
 
-		reg := image.NewOCIRegistry(named.String(), nil, ch)
+		reg := registry.NewOCIRegistry(named.String(), nil, ch)
 		is := image.NewStore(named.String(), sopts...)
 
-		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb))
+		ts := local.NewTransferService(db.NewLeaseManager(mdb), mdb.ContentStore(), db.NewImageStore(mdb), &local.TransferConfig{})
 
 		var pf transfer.ProgressFunc
 		if clicontext.Bool("proto-out") {

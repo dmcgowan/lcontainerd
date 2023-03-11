@@ -23,12 +23,12 @@ import (
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
-	image "github.com/containerd/containerd/pkg/transfer/image"
+	registry "github.com/containerd/containerd/pkg/transfer/registry"
 
 	"github.com/keybase/go-keychain"
 )
 
-func storeCredentials(ctx context.Context, host string, creds image.Credentials) error {
+func storeCredentials(ctx context.Context, host string, creds registry.Credentials) error {
 	b, err := json.Marshal(creds)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func storeCredentials(ctx context.Context, host string, creds image.Credentials)
 	return err
 }
 
-func getCredentials(ctx context.Context, host, user string) (image.Credentials, error) {
+func getCredentials(ctx context.Context, host, user string) (registry.Credentials, error) {
 	sid := id(host)
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
@@ -67,7 +67,7 @@ func getCredentials(ctx context.Context, host, user string) (image.Credentials, 
 	// Query all and choose best match
 	items, err := keychain.QueryItem(item)
 	if err != nil {
-		return image.Credentials{}, fmt.Errorf("keychain query failed: %w", err)
+		return registry.Credentials{}, fmt.Errorf("keychain query failed: %w", err)
 	}
 	var bestMatch *keychain.QueryResult
 	for _, item := range items {
@@ -85,7 +85,7 @@ func getCredentials(ctx context.Context, host, user string) (image.Credentials, 
 	}
 
 	if bestMatch == nil {
-		return image.Credentials{}, errdefs.ErrNotFound
+		return registry.Credentials{}, errdefs.ErrNotFound
 	}
 
 	item = keychain.NewItem()
@@ -99,16 +99,16 @@ func getCredentials(ctx context.Context, host, user string) (image.Credentials, 
 	// Get single result
 	items, err = keychain.QueryItem(item)
 	if err != nil {
-		return image.Credentials{}, fmt.Errorf("keychain query failed: %w", err)
+		return registry.Credentials{}, fmt.Errorf("keychain query failed: %w", err)
 	}
 
 	if len(items) != 1 {
-		return image.Credentials{}, errdefs.ErrNotFound
+		return registry.Credentials{}, errdefs.ErrNotFound
 	}
 
-	var creds image.Credentials
+	var creds registry.Credentials
 	if err := json.Unmarshal(items[0].Data, &creds); err != nil {
-		return image.Credentials{}, err
+		return registry.Credentials{}, err
 	}
 
 	return creds, nil

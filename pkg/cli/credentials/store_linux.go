@@ -22,11 +22,11 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/log"
-	image "github.com/containerd/containerd/pkg/transfer/image"
+	registry "github.com/containerd/containerd/pkg/transfer/registry"
 	"github.com/keybase/go-keychain/secretservice"
 )
 
-func storeCredentials(ctx context.Context, host string, creds image.Credentials) error {
+func storeCredentials(ctx context.Context, host string, creds registry.Credentials) error {
 	attributes := map[string]string{
 		"registry": host,
 	}
@@ -63,33 +63,33 @@ func storeCredentials(ctx context.Context, host string, creds image.Credentials)
 	return nil
 }
 
-func getCredentials(ctx context.Context, host, user string) (image.Credentials, error) {
+func getCredentials(ctx context.Context, host, user string) (registry.Credentials, error) {
 	attributes := map[string]string{
 		"registry": host,
 	}
 
 	s, err := secretservice.NewService()
 	if err != nil {
-		return image.Credentials{}, err
+		return registry.Credentials{}, err
 	}
 	session, err := s.OpenSession(secretservice.AuthenticationDHAES)
 	if err != nil {
-		return image.Credentials{}, err
+		return registry.Credentials{}, err
 	}
 	defer s.CloseSession(session)
 
 	items, err := s.SearchCollection(secretservice.DefaultCollection, attributes)
 	if err != nil {
-		return image.Credentials{}, err
+		return registry.Credentials{}, err
 	}
 	for _, item := range items {
 		sb, err := s.GetSecret(item, *session)
 		if err != nil {
-			return image.Credentials{}, err
+			return registry.Credentials{}, err
 		}
-		var creds image.Credentials
+		var creds registry.Credentials
 		if err := json.Unmarshal(sb, &creds); err != nil {
-			return image.Credentials{}, err
+			return registry.Credentials{}, err
 		}
 
 		if creds.Secret != "" {
@@ -98,5 +98,5 @@ func getCredentials(ctx context.Context, host, user string) (image.Credentials, 
 		}
 	}
 
-	return image.Credentials{}, nil
+	return registry.Credentials{}, nil
 }

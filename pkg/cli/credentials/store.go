@@ -22,17 +22,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/containerd/pkg/transfer/image"
+	"github.com/containerd/containerd/pkg/transfer/registry"
 )
 
 // StoreCredentialsInKeychain stores the credentials in the default keychain credential store
 // for the system or environment
-func StoreCredentialsInKeychain(ctx context.Context, host string, creds image.Credentials) error {
+func StoreCredentialsInKeychain(ctx context.Context, host string, creds registry.Credentials) error {
 	return storeCredentials(ctx, host, creds)
 }
 
 // StoreCredentialsLocal stores the credentials to a local directory using the provided encoder
-func StoreCredentialsLocal(ctx context.Context, dir, host string, creds image.Credentials, encoder Encoder) error {
+func StoreCredentialsLocal(ctx context.Context, dir, host string, creds registry.Credentials, encoder Encoder) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
@@ -50,11 +50,11 @@ func StoreCredentialsLocal(ctx context.Context, dir, host string, creds image.Cr
 }
 
 type Encoder interface {
-	Encode(image.Credentials) ([]byte, error)
+	Encode(registry.Credentials) ([]byte, error)
 }
 
 type Decoder interface {
-	Decode([]byte) (image.Credentials, error)
+	Decode([]byte) (registry.Credentials, error)
 }
 
 type EncoderDecoder interface {
